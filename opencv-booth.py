@@ -2,6 +2,7 @@ import cv2
 import os
 import time
 from datetime import datetime
+import numpy as np
 
 # import RPi.GPIO as GPIO
 
@@ -46,19 +47,54 @@ def photoBooth():
 
 def buttonPressed():
     global state
-    global slideshowStartedAt
     if state == 'idle':
         state = 'slideshow'
-        slideshowStartedAt = datetime.now()
+        startSlideshow()
 
 def startSlideshow():
+    global slideshowStartedAt
+
     print('start slideshow')
+    if not os.path.exists('tmp'):
+        os.mkdir('tmp')
+
+    removeImage('tmp/photo-1.jpg')
+    removeImage('tmp/photo-2.jpg')
+    removeImage('tmp/photo-3.jpg')
+    removeImage('tmp/photo-4.jpg')
+    slideshowStartedAt = currentTimeMilliseconds()
+
+def removeImage(path):
+    if os.path.exists(path):
+        os.remove(path)
+
+previousMs = 0
 
 def continueSlideshow():
-    showCamera()
-    time = datetime.now() - slideshowStartedAt
-    print('continue slideshow')
-    print(str(time))
+    global state
+    global previousMs
+
+    ms = currentTimeMilliseconds() - slideshowStartedAt
+    if 1000 <= ms < 2000:
+        showImage('images/photo-1.png')
+    elif 2000 <= ms < 3000:
+        showImage('images/countdown-3.png')
+    elif 3000 <= ms < 4000:
+        showImage('images/countdown-2.png')
+    elif 4000 <= ms < 5000:
+        showImage('images/countdown-1.png')
+    elif 5000 <= ms < 6000:
+        showImage('images/cheese.png')
+    elif 6000 <= ms < 7000:
+        showCamera()
+    elif ms > 7000 and previousMs < 7000:
+        takePicture(1)
+    elif 7000 <= ms < 8000:
+        showPhotoSheet()
+    elif 8000 <= ms < 9000:
+        state = 'idle'
+
+    previousMs = ms
     
 def showImage(filename):
     img = cv2.imread(filename, 1)
@@ -70,9 +106,16 @@ def showCamera():
     #     img = cv2.flip(img, 1)
     cv2.imshow(windowName, img)
 
-def takePicture():
+def takePicture(number):
     _, img = cam.read()
-    cv2.imwrite('img.jpg', img)
+    cv2.imwrite('tmp/photo-' + str(number) + '.jpg', img)
+
+def showPhotoSheet():
+    img = cv2.imread('tmp/photo-1.jpg', 1)
+    cv2.imshow(windowName, img)
+
+def currentTimeMilliseconds():
+    return int(round(time.time() * 1000))
 
 def main():
     photoBooth()
